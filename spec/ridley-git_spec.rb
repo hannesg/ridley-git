@@ -51,41 +51,70 @@ describe Ridley::Git do
     CommitBuilder.new(git).build(&block)
   end
 
+  def empty_manifest
+    {
+      "attributes" => [],
+      "definitions" =>[],
+      "files"      => [],
+      "libraries"  => [],
+      "providers"  => [],
+      "recipes"    => [],
+      "resources"  => [], 
+      "root_files" => [],
+      "templates" => []
+    }
+  end
+
   describe Ridley::Git::Repository do
 
     it "should accept a git repo" do
       repo = Ridley::Git::Repository.new(git)
     end
 
-    it "should be able to read a simple commit" do
 
-      commit do
-        file "metadata.rb", <<'METADATA'.strip
+    describe "with the smallest possible cookbook" do
+
+      before(:each) do
+        commit do
+           file "metadata.rb", <<'METADATA'.strip
 name "foo"
-maintainer "foo"
+version "0.1.0"
+METADATA
+        end
+      end
+
+      it "reads name and version correctly" do
+        repo = Ridley::Git::Repository.new(git)
+        cb = repo['HEAD']
+        cb.name.should == 'foo-0.1.0'
+      end
+
+      it "calculates the manifest correctly" do
+        repo = Ridley::Git::Repository.new(git)
+        cb = repo['HEAD']
+        # manifest is private
+        cb.send(:manifest).should == empty_manifest.merge(
+          "root_files" => [{
+            :name => 'metadata.rb',
+            :path => 'metadata.rb',
+            :checksum => 'f6f3647fecaa0e09308799eee70d30c1',
+            :specifity => 'default'
+          }]
+        )
+      end
+
+      it "calculates the checksums correctly" do
+        repo = Ridley::Git::Repository.new(git)
+        cb = repo['HEAD']
+        checksums = cb.checksums
+        checksums.should have(1).item
+        checksums.keys.first.should == 'f6f3647fecaa0e09308799eee70d30c1'
+        checksums.values.first.should respond_to(:read)
+        checksums.values.first.read.should == <<'METADATA'.strip
+name "foo"
 version "0.1.0"
 METADATA
       end
-
-      repo = Ridley::Git::Repository.new(git)
-      cb = repo['HEAD']
-      cb.name.should == 'foo-0.1.0'
-      cb.instance_variable_get(:@manifest).should == {
-        "attributes" => [],
-        "definitions" =>[],
-        "files"      => [],
-        "libraries"  => [],
-        "providers"  => [],
-        "recipes"    => [],
-        "resources"  => [], 
-        "root_files" => [{
-          :name => 'metadata.rb',
-          :path => 'metadata.rb',
-          :checksum => '05587ed842269dad12f93d8d67a1c045',
-          :specifity => 'default'
-        }],
-        "templates" => []
-      }
 
     end
 

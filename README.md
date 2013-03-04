@@ -1,6 +1,9 @@
 ridley-git
 =================
 
+[![Build Status](https://travis-ci.org/hannesg/ridley-git.png?branch=master)](https://travis-ci.org/hannesg/ridley-git)
+[![Coverage Status](https://coveralls.io/repos/hannesg/ridley-git/badge.png?branch=master)](https://coveralls.io/r/hannesg/ridley-git)
+
 Use ridley cookbooks directly from a git repository.
 
 Usage

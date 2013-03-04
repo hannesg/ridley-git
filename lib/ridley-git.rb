@@ -13,6 +13,18 @@ module Ridley::Git
 
   end
 
+  class BlobIO
+
+    def initialize(git_blob)
+      @blob = git_blob
+    end
+
+    def read
+      @blob.content
+    end
+
+  end
+
   class Cookbook < Ridley::Chef::Cookbook
 
     def initialize(git, tree, options = {})
@@ -26,7 +38,31 @@ module Ridley::Git
       super(meta.name,'', meta)
     end
 
+    def files
+      actually_load_files
+      super
+    end
+
+    def checksums
+      actually_load_files
+      return @checksums
+    end
+
   private
+
+    # Dummy method. The file list will be loaded lazily
+    def load_files
+    end
+
+    def actually_load_files
+      return if @files_loaded
+      Ridley::Chef::Cookbook.instance_method(:load_files).bind(self).call
+      @files_loaded = true
+    end
+    def manifest
+      actually_load_files
+      super
+    end
 
     attr :git, :tree, :cache
 
@@ -36,6 +72,10 @@ module Ridley::Git
 
     def git_checksum(oid)
       cache[oid]
+    end
+
+    def git_io(oid)
+      BlobIO.new(@git.lookup(oid))
     end
 
     def git_metadata(category, path, blob)
@@ -60,12 +100,18 @@ module Ridley::Git
       end
     end
 
+    def push_metadata(category, file, entry)
+      meta = git_metadata(category, file, entry)
+      @checksums[meta[:checksum]] = git_io(entry[:oid])
+      @files << file
+      @manifest[category] << meta
+    end
+
     def load_root
       [].tap do |files|
         git_glob(path.join('*'), File::FNM_DOTMATCH).each do |file, entry|
           next if entry[:type] == :tree
-          @files << file
-          @manifest[:root_files] << git_metadata(:root_files, file, entry)
+          push_metadata(:root_files, file, entry)
         end
       end
     end
@@ -75,8 +121,7 @@ module Ridley::Git
         file_spec = path.join(category_dir, '**', glob)
         git_glob(file_spec, File::FNM_DOTMATCH).each do |file, entry|
           next if entry[:type] == :tree
-          @files << file
-          @manifest[category] << git_metadata(category, file, entry)
+          push_metadata(category, file, entry)
         end
       end
     end
@@ -84,8 +129,7 @@ module Ridley::Git
     def load_shallow(category, *path_glob)
       [].tap do |files|
         git_glob(path.join(*path_glob)).each do |file, entry|
-          @files << file
-          @manifest[category] << git_metadata(category, file, entry)
+          push_metadata(category, file, entry)
         end
       end
     end

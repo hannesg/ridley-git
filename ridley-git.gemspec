@@ -17,4 +17,5 @@ Gem::Specification.new do |gem|
   gem.add_dependency "ridley", "~> 0.8.0", ">= 0.8.1"
 
   gem.add_development_dependency "rspec"
+  gem.add_development_dependency "simplecov"
 end

@@ -3,5 +3,6 @@ source "https://rubygems.org"
 
 gemspec
 
-gem 'ridley', :git => "git://github.com/hannesg/ridley.git", :ref => 'accept_io_in_sandbox_upload'
+gem 'coveralls', :group => :development
 
+gem 'ridley', :git => "git://github.com/hannesg/ridley.git", :ref => 'accept_io_in_sandbox_upload'
