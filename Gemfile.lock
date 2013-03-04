@@ -1,7 +1,6 @@
 GIT
-  remote: git://github.com/hannesg/ridley.git
-  revision: 737321664bf74b1520c6e83eaead6eef0a402145
-  ref: accept_io_in_sandbox_upload
+  remote: git://github.com/reset/ridley.git
+  revision: 4b4281667066f1dcfb66bdc491bd44cb104d5b85
   specs:
     ridley (0.8.1)
       activesupport (>= 3.2.0)
