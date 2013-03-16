@@ -1,10 +1,10 @@
 Gem::Specification.new do |gem|
   gem.name    = 'ridley-git'
-  gem.version = '0.0.1'
+  gem.version = '0.0.1.alpha1'
   gem.date    = Time.now.strftime("%Y-%m-%d")
 
-  gem.summary = "directly "
-  gem.description = "extended description"
+  gem.summary = "directly interact with git repositories in ridley"
+  gem.description = "This library allows you read cookbooks directly from a git repository. There is no need to do a checkout and you can access all revisions."
 
   gem.authors  = ['Hannes Georg']
   gem.email    = 'hannes.georg@googlemail.com'

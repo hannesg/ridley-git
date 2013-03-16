@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ridley-git (0.0.1)
+    ridley-git (0.0.1.alpha1)
       borx (>= 0.0.1.beta1)
       ridley (~> 0.8.0, >= 0.8.4)
       rugged (>= 0.17.0b1)

@@ -164,7 +164,7 @@ RECIPE
       # manifest is private
       cb.send(:manifest).should == empty_manifest.merge(
         "recipes" => [
-          {:name=>"default.rb", :path=>"recipes/default.rb", :checksum=>"c02b03187293bdb6a938d77a68656a00", :specifity=>"default"}
+          {:name=>"default.rb", :path=>"recipes/default.rb", :checksum=>'632c42688fc390f123d2980389d0f4b1', :specifity=>"default"}
         ],
         "root_files" => [
           {:name=>"README.md", :path=>"README.md", :checksum=>"b4405bcd06a4da2027c594f21e69f32e", :specifity=>"default"},
@@ -178,13 +178,27 @@ RECIPE
       cb = repo['HEAD']
       checksums = cb.checksums
       checksums.should have(3).item
-      checksums.keys.sort.should == [ "b4405bcd06a4da2027c594f21e69f32e", "c02b03187293bdb6a938d77a68656a00", "d7fb90833b4458b5ea33fbf2e4847068" ]
-      checksums["d7fb90833b4458b5ea33fbf2e4847068"].should respond_to(:read)
-      checksums["d7fb90833b4458b5ea33fbf2e4847068"].read.should == <<'METADATA'.strip
+      checksums.keys.sort.should == [ '632c42688fc390f123d2980389d0f4b1','b4405bcd06a4da2027c594f21e69f32e', 'd7fb90833b4458b5ea33fbf2e4847068' ]
+    end
+
+    it "calculates the  contents correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      cb = repo['HEAD']
+      checksums = cb.checksums     
+      checksums['d7fb90833b4458b5ea33fbf2e4847068'].read.should == <<'METADATA'.strip
 name "foo"
 version "0.1.0"
 long_description IO.read(File.join(File.dirname(__FILE__),'README.md'))
 METADATA
+      checksums['b4405bcd06a4da2027c594f21e69f32e'].read.should == <<'readme'.strip
+# Foo
+readme
+      checksums['632c42688fc390f123d2980389d0f4b1'].read.should == <<'RECIPE'.strip
+file "foo" do
+content "bar"
+end
+RECIPE
+
     end
 
     it "calculates the metadata correctly" do
