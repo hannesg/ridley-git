@@ -8,7 +8,7 @@ SimpleCov.start do
     Coveralls::SimpleCov::Formatter
   ]
   add_filter "/spec"
-  refuse_coverage_drop
+  maximum_coverage_drop 5
 end
 
 Bundler.require(:default, :development)
