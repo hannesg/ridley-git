@@ -93,5 +93,4 @@ DEPENDENCIES
   coveralls
   ridley-git!
   rspec
-  rugged
   simplecov
