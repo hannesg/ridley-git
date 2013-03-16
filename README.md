@@ -9,7 +9,7 @@ Use ridley cookbooks directly from a git repository.
 Usage
 --------------------
 
-At your own risk! I had to issue a pull request to make it work.
+At your own risk!
 
     # create a git repo containing a cookbook
     repo = Ridley::Git::Repository.new('path/to/git')
@@ -29,3 +29,4 @@ Facts
   - Works with bare and checked-out repositories
   - Caches checksums; if you crawl cookbook history, you'll feel the difference
   - Doesn't need a checkout for uploading
+  - Handles IO.read from metadata.rb correctly ( but may fail on other things )

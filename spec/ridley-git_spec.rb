@@ -16,6 +16,10 @@ describe Ridley::Git do
 
   class CommitBuilder
 
+    def tree
+      return @tree_builder.write(@git)
+    end
+
     def initialize(repo, options = {})
       @git = repo
       @tree_builder = Rugged::Tree::Builder.new
@@ -27,6 +31,12 @@ describe Ridley::Git do
       write!
     end
 
+    def dir(name, &block)
+      b = CommitBuilder.new(@git)
+      b.instance_eval(&block)
+      @tree_builder << { :type => :tree, :name => name, :oid => b.tree, :filemode => 0100644 }
+    end
+
     def file(name, content)
       oid = @git.write(content.to_s, :blob)
       @tree_builder << { :type => :blob, :name => name, :oid => oid, :filemode => 0100644 }
@@ -35,7 +45,7 @@ describe Ridley::Git do
     def write!
       Rugged::Commit.create(
         @git,
-        { :tree => @tree_builder.write(@git),
+        { :tree => tree,
           :author => { :email => 'test@ridley.git', :name => 'Ridley Git', :time => Time.now },
           :committer => { :email => 'test@ridley.git', :name => 'Ridley Git', :time => Time.now },
           :message => "Test",
@@ -116,6 +126,71 @@ version "0.1.0"
 METADATA
       end
 
+    end
+
+  end
+
+  describe "with a reasonable cookbook" do
+
+    before(:each) do
+      commit do
+        file "metadata.rb", <<'METADATA'.strip
+name "foo"
+version "0.1.0"
+long_description IO.read(File.join(File.dirname(__FILE__),'README.md'))
+METADATA
+        file "README.md", <<'README'.strip
+# Foo
+README
+        dir "recipes" do
+          file "default.rb", <<'RECIPE'.strip
+file "foo" do
+content "bar"
+end
+RECIPE
+        end
+      end
+    end
+
+    it "reads name and version correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      cb = repo['HEAD']
+      cb.name.should == 'foo-0.1.0'
+    end
+
+    it "calculates the manifest correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      cb = repo['HEAD']
+      # manifest is private
+      cb.send(:manifest).should == empty_manifest.merge(
+        "recipes" => [
+          {:name=>"default.rb", :path=>"recipes/default.rb", :checksum=>"c02b03187293bdb6a938d77a68656a00", :specifity=>"default"}
+        ],
+        "root_files" => [
+          {:name=>"README.md", :path=>"README.md", :checksum=>"b4405bcd06a4da2027c594f21e69f32e", :specifity=>"default"},
+          {:name=>"metadata.rb", :path=>"metadata.rb", :checksum=>"d7fb90833b4458b5ea33fbf2e4847068", :specifity=>"default"}
+        ]
+      )
+    end
+
+    it "calculates the checksums correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      cb = repo['HEAD']
+      checksums = cb.checksums
+      checksums.should have(3).item
+      checksums.keys.sort.should == [ "b4405bcd06a4da2027c594f21e69f32e", "c02b03187293bdb6a938d77a68656a00", "d7fb90833b4458b5ea33fbf2e4847068" ]
+      checksums["d7fb90833b4458b5ea33fbf2e4847068"].should respond_to(:read)
+      checksums["d7fb90833b4458b5ea33fbf2e4847068"].read.should == <<'METADATA'.strip
+name "foo"
+version "0.1.0"
+long_description IO.read(File.join(File.dirname(__FILE__),'README.md'))
+METADATA
+    end
+
+    it "calculates the metadata correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      cb = repo['HEAD']
+      cb.metadata.long_description.should == "# Foo"
     end
 
   end

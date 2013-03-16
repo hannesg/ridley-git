@@ -2,6 +2,7 @@ require 'ridley'
 require 'ridley/chef/cookbook'
 require 'ridley/chef/digester'
 require 'rugged'
+require 'borx'
 module Ridley::Git
 
   class Cache < Hash
@@ -13,7 +14,7 @@ module Ridley::Git
 
   end
 
-  class BlobIO
+  class BlobIO < IO
 
     def initialize(git_blob)
       @blob = git_blob
@@ -27,6 +28,28 @@ module Ridley::Git
 
   class Cookbook < Ridley::Chef::Cookbook
 
+    class Environment < Borx::Environment
+
+      include Borx::Environment::GetSetVariable
+      include Borx::Environment::CallMethod
+
+      def call_method(binding, receiver, method, *args, &block)
+        if receiver == IO && method == 'read'
+          path = File.expand_path(args.first, '/').split('/')
+          path.shift if path.first == ""
+          entry = @tree[path.first]
+          return @git.lookup(entry[:oid]).content
+        end
+        return super
+      end
+
+      def initialize(git, tree)
+        @git = git
+        @tree = tree
+      end
+
+    end
+
     def initialize(git, tree, options = {})
       @git = git
       @tree = tree
@@ -34,7 +57,8 @@ module Ridley::Git
       @checksums = {}
       object = git_lookup('metadata.rb')
       meta = Ridley::Chef::Cookbook::Metadata.new
-      meta.instance_eval(object.text,'metadata.rb',1)
+      env = Environment.new(git, tree)
+      env.eval(object.text, :self => meta )
       super(meta.name,'', meta)
     end
 
@@ -87,6 +111,10 @@ module Ridley::Git
       }
     end
 
+    def tree?(entry)
+      git.lookup(entry[:oid]).kind_of? Rugged::Tree
+    end
+
     def git_glob(glob, *opts, &block)
       return to_enum(:git_glob, glob, *opts) unless block
       git_glob2(path, tree, glob.to_s, *opts, &block)
@@ -96,7 +124,7 @@ module Ridley::Git
       tree.each do |entry|
         name = path.join(entry[:name])
         yield name, entry if File.fnmatch?(glob,name.to_s,*opts)
-        git_glob2(name, git.lookup(entry[:oid]), glob, *opts, &block) if entry[:type] == :tree
+        git_glob2(name, git.lookup(entry[:oid]), glob, *opts, &block) if tree? entry
       end
     end
 
@@ -108,29 +136,24 @@ module Ridley::Git
     end
 
     def load_root
-      [].tap do |files|
-        git_glob(path.join('*'), File::FNM_DOTMATCH).each do |file, entry|
-          next if entry[:type] == :tree
-          push_metadata(:root_files, file, entry)
-        end
+      tree.each do |entry|
+        next if tree? entry
+        push_metadata(:root_files, entry[:name], entry)
       end
     end
 
     def load_recursively(category, category_dir, glob)
-      [].tap do |files|
-        file_spec = path.join(category_dir, '**', glob)
-        git_glob(file_spec, File::FNM_DOTMATCH).each do |file, entry|
-          next if entry[:type] == :tree
-          push_metadata(category, file, entry)
-        end
+      file_spec = path.join(category_dir, '**', glob)
+      git_glob(file_spec, File::FNM_DOTMATCH).each do |file, entry|
+        next if tree? entry
+        push_metadata(category, file, entry)
       end
     end
 
     def load_shallow(category, *path_glob)
-      [].tap do |files|
-        git_glob(path.join(*path_glob)).each do |file, entry|
-          push_metadata(category, file, entry)
-        end
+      git_glob(path.join(*path_glob)).each do |file, entry|
+        next if tree? entry
+        push_metadata(category, file, entry)
       end
     end
 
