@@ -184,7 +184,7 @@ RECIPE
     it "calculates the  contents correctly" do
       repo = Ridley::Git::Repository.new(git)
       cb = repo['HEAD']
-      checksums = cb.checksums     
+      checksums = cb.checksums
       checksums['d7fb90833b4458b5ea33fbf2e4847068'].read.should == <<'METADATA'.strip
 name "foo"
 version "0.1.0"
@@ -205,6 +205,16 @@ RECIPE
       repo = Ridley::Git::Repository.new(git)
       cb = repo['HEAD']
       cb.metadata.long_description.should == "# Foo"
+    end
+
+    it "eaches correctly" do
+      repo = Ridley::Git::Repository.new(git)
+      expect{|b| repo.each('HEAD', &b) }.to yield_with_args(Ridley::Git::Cookbook)
+    end
+
+    it "eaches correctly with an array of refs" do
+      repo = Ridley::Git::Repository.new(git)
+      expect{|b| repo.each(['HEAD'], &b) }.to yield_with_args(Ridley::Git::Cookbook)
     end
 
   end

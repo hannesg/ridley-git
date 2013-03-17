@@ -19,6 +19,11 @@ module Ridley::Git
       end
     end
 
+    def rev_to_oid(git, rev)
+      Rugged::Reference.lookup(git, rev).resolve.target
+    end
+
+
     extend self
 
   end
@@ -46,6 +51,8 @@ module Ridley::Git
 
   class Repository
 
+    include Enumerable
+
     attr :git
 
     def initialize(git_repository, options = {})
@@ -60,9 +67,42 @@ module Ridley::Git
       @cache = Cache.new(@git)
     end
 
+    def each( refs, path = '/' )
+      walker = Rugged::Walker.new(@git)
+      case(refs)
+      when String then
+        walker.push(Utils.rev_to_oid(git, refs))
+      when Array then
+        refs.each do |r|
+          walker.push(Utils.rev_to_oid(git, r))
+        end
+      when Range then
+        walker.push( Utils.rev_to_oid(git, refs.end) )
+        walker.hide( Utils.rev_to_oid(git, refs.begin) )
+      end
+      seen = Set.new
+      walker.each do |commit|
+        tree = Utils.traverse(@git, commit.tree, path)
+        unless seen.include? tree
+          yield self[tree]
+          seen << tree
+        end
+      end
+      return self
+    end
+
     def []( name, path = '/' )
-      ref = Rugged::Reference.lookup(git, name)
-      base = git.lookup(ref.resolve.target).tree
+      base = nil
+      case name
+      when String then
+        return self[ git.lookup(Rugged::Reference.lookup(git, name).resolve.target), path ]
+      when Rugged::Commit then
+        base = name.tree
+      when Rugged::Tree then
+        base = name
+      else
+        raise "Unknown arg #{name}"
+      end
       Cookbook.new(git, Utils.traverse(git, base, path) , :cache => cache)
     end
 

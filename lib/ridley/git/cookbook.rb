@@ -11,7 +11,11 @@ class Ridley::Git::Cookbook < Ridley::Chef::Cookbook
     def call_method(binding, receiver, method, *args, &block)
       if receiver == IO && method == 'read'
         path = File.expand_path(args.first, '/')
-        return Utils.traverse(@git, @tree, path).content
+        blob = Utils.traverse(@git, @tree, path)
+        if blob.nil?
+          raise Error::ENOENT, "No such file or directory - #{path}"
+        end
+        return blob.content
       end
       return super
     end
@@ -43,6 +47,10 @@ class Ridley::Git::Cookbook < Ridley::Chef::Cookbook
   def checksums
     actually_load_files
     return @checksums
+  end
+
+  def tree_id
+    return tree.oid
   end
 
 private
