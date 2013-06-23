@@ -11,54 +11,13 @@ describe Ridley::Git do
   }
 
   let(:git){
-    Rugged::Repository.init_at(tempdir, true)
+    MultiGit.open(tempdir, init: true)
   }
 
-  class CommitBuilder
-
-    def tree
-      return @tree_builder.write(@git)
-    end
-
-    def initialize(repo, options = {})
-      @git = repo
-      @tree_builder = Rugged::Tree::Builder.new
-      @options = options
-    end
-
-    def build(&block)
-      instance_eval(&block)
-      write!
-    end
-
-    def dir(name, &block)
-      b = CommitBuilder.new(@git)
-      b.instance_eval(&block)
-      @tree_builder << { :type => :tree, :name => name, :oid => b.tree, :filemode => 0100644 }
-    end
-
-    def file(name, content)
-      oid = @git.write(content.to_s, :blob)
-      @tree_builder << { :type => :blob, :name => name, :oid => oid, :filemode => 0100644 }
-    end
-
-    def write!
-      Rugged::Commit.create(
-        @git,
-        { :tree => tree,
-          :author => { :email => 'test@ridley.git', :name => 'Ridley Git', :time => Time.now },
-          :committer => { :email => 'test@ridley.git', :name => 'Ridley Git', :time => Time.now },
-          :message => "Test",
-          :parents => @git.empty? ? [] : [ @git.head.target ].compact,
-          :update_ref => 'HEAD'
-        }.merge(@options)
-      )
-    end
-
-  end
-
   def commit(&block)
-    CommitBuilder.new(git).build(&block)
+    git.head.commit do
+      tree.instance_eval &block
+    end
   end
 
   def empty_manifest
@@ -80,7 +39,6 @@ describe Ridley::Git do
     it "should accept a git repo" do
       repo = Ridley::Git::Repository.new(git)
     end
-
 
     describe "with the smallest possible cookbook" do
 
@@ -142,7 +100,7 @@ METADATA
         file "README.md", <<'README'.strip
 # Foo
 README
-        dir "recipes" do
+        directory "recipes" do
           file "default.rb", <<'RECIPE'.strip
 file "foo" do
 content "bar"
@@ -211,12 +169,6 @@ RECIPE
       repo = Ridley::Git::Repository.new(git)
       expect{|b| repo.each('HEAD', &b) }.to yield_with_args(Ridley::Git::Cookbook)
     end
-
-    it "eaches correctly with an array of refs" do
-      repo = Ridley::Git::Repository.new(git)
-      expect{|b| repo.each(['HEAD'], &b) }.to yield_with_args(Ridley::Git::Cookbook)
-    end
-
   end
 
 end
